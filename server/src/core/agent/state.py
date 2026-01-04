@@ -21,6 +21,7 @@ class QAState(MessagesState):
     5. Verification Agent: produces final `answer` from `question` + `context` + `draft_answer`
     """
 
+    user_id: str  # User ID for namespace isolation
     question: str
     query_plan: QueryPlan | None = None
     context: str = ""

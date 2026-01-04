@@ -11,7 +11,6 @@ from .prompts import (
     QUERY_PLAN_SYSTEM_PROMPT,
 )
 from .state import QAState
-from .tools import retrieval_tool
 from .response_modal import QueryPlan
 from .utils import (
     _extract_last_ai_content,
@@ -22,11 +21,11 @@ from .utils import (
     _build_structured_context,
 )
 from .agents import (
-    query_plan_agent,
-    retrieval_agent,
-    context_critic_agent,
-    summarization_agent,
-    verification_agent,
+    create_query_plan_agent,
+    create_retrieval_agent,
+    create_context_critic_agent,
+    create_summarization_agent,
+    create_verification_agent,
 )
 
 
@@ -41,6 +40,9 @@ def query_plan_node(state: QAState) -> QAState:
     """
     question = state["question"]
 
+    # Create query plan agent (user-independent)
+    query_plan_agent = create_query_plan_agent()
+
     # Invoke the query planning agent with the user's question
     result = query_plan_agent.invoke({"messages": [HumanMessage(content=question)]})
 
@@ -52,12 +54,12 @@ def query_plan_node(state: QAState) -> QAState:
 
 
 def retrieval_node(state: QAState) -> QAState:
-    """Retrieval Agent node: gathers context from vector store with comprehensive message tracking.
+    """Retrieval Agent node: gathers context from user's namespace with comprehensive message tracking.
 
     This node implements multi-call retrieval with full transparency:
     - Uses sub-questions from query_plan if available, otherwise uses the original question.
     - Sends each query to the Retrieval Agent.
-    - The agent uses the attached retrieval tool to fetch document chunks.
+    - The agent uses the attached retrieval tool to fetch document chunks from user's namespace.
     - **Captures ALL ToolMessages** (not just the last one).
     - Extracts artifacts (document metadata) and citations from each ToolMessage.
     - Builds human-readable retrieval traces documenting all calls.
@@ -66,6 +68,10 @@ def retrieval_node(state: QAState) -> QAState:
     """
     question = state["question"]
     query_plan = state["query_plan"]
+    user_id = state["user_id"]
+
+    # Create user-specific retrieval agent
+    retrieval_agent = create_retrieval_agent(user_id)
 
     # Determine which queries to use for retrieval
     queries = []
@@ -157,6 +163,9 @@ def context_critic_node(state: QAState) -> QAState:
             "context_rationale": ["No context available for analysis"],
         }
 
+    # Create context critic agent (user-independent)
+    context_critic_agent = create_context_critic_agent()
+
     # Prepare the input for the context critic
     user_content = f"""Question: {question}
 
@@ -202,6 +211,9 @@ def summarization_node(state: QAState) -> QAState:
     question = state["question"]
     context = state.get("context")
 
+    # Create summarization agent (user-independent)
+    summarization_agent = create_summarization_agent()
+
     user_content = f"Question: {question}\n\nContext:\n{context}"
 
     result = summarization_agent.invoke(
@@ -226,6 +238,9 @@ def verification_node(state: QAState) -> QAState:
     question = state["question"]
     context = state.get("context", "")
     draft_answer = state.get("draft_answer", "")
+
+    # Create verification agent (user-independent)
+    verification_agent = create_verification_agent()
 
     user_content = f"""Question: {question}
     

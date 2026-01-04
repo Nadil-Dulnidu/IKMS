@@ -41,20 +41,29 @@ async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONR
 
 
 @app.post("/qa", status_code=status.HTTP_200_OK)
-async def qa_endpoint(payload: VercelChatRequest, _token=Depends(verify_clerk_token)):
+async def qa_endpoint(payload: VercelChatRequest, token=Depends(verify_clerk_token)):
+    # Extract user ID from token
+    user_id = token.get("sub")  # Clerk uses 'sub' for user ID
+
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User ID not found in token",
+        )
+
     # Extract user message
     message = extract_user_message(payload.messages)
 
     # Extract file info (filename and URL) if present
     filename, file_url = extract_file(payload.messages)
 
-    # If file URL is present, download and index it
+    # If file URL is present, download and index it to user's namespace
     if file_url:
         try:
             # Download and save the file with the original filename
             file_path = await download_and_save_file(file_url, filename)
-            # Index the downloaded PDF
-            await index_pdf_file(file_path)
+            # Index the downloaded PDF into user's namespace
+            await index_pdf_file(file_path, user_id)
         except Exception as e:
             print(f"Error processing file: {e}")
             raise HTTPException(
@@ -70,6 +79,7 @@ async def qa_endpoint(payload: VercelChatRequest, _token=Depends(verify_clerk_to
             graph=get_qa_graph(),
             message=message,
             thread_id=thread_id,
+            user_id=user_id,  # Pass user_id for namespace isolation
         ),
         media_type="text/event-stream",
     )

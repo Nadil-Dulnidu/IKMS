@@ -64,6 +64,7 @@ async def stream_any_langgraph_graph(
     graph,  # Any compiled LangGraph graph
     message: str,
     thread_id: str,
+    user_id: str,  # User ID for namespace isolation
 ) -> AsyncGenerator[str, None]:
     """
     Generic streaming function that works with ANY LangGraph graph.
@@ -81,6 +82,7 @@ async def stream_any_langgraph_graph(
 
     # Minimal initial state (works with any MessagesState-based graph)
     initial_state: QAState = {
+        "user_id": user_id,  # User ID for namespace isolation
         "question": message,
         "context": None,
         "draft_answer": None,
