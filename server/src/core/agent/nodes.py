@@ -17,6 +17,7 @@ from .utils import (
     _extract_last_ai_content,
     _extract_query_from_tool_message,
     _extract_artifacts_from_tool_message,
+    _extract_citations_from_tool_message,
     _build_retrieval_trace,
     _build_structured_context,
 )
@@ -58,10 +59,10 @@ def retrieval_node(state: QAState) -> QAState:
     - Sends each query to the Retrieval Agent.
     - The agent uses the attached retrieval tool to fetch document chunks.
     - **Captures ALL ToolMessages** (not just the last one).
-    - Extracts artifacts (document metadata) from each ToolMessage.
+    - Extracts artifacts (document metadata) and citations from each ToolMessage.
     - Builds human-readable retrieval traces documenting all calls.
     - Creates structured, organized context blocks for downstream agents.
-    - Stores comprehensive information in state to prevent data loss.
+    - Stores comprehensive information including citations in state to prevent data loss.
     """
     question = state["question"]
     query_plan = state["query_plan"]
@@ -80,6 +81,7 @@ def retrieval_node(state: QAState) -> QAState:
     raw_context_blocks = []
     structured_context_blocks = []
     all_tool_messages = []
+    all_citations = {}  # Consolidated citation map
 
     # Perform retrieval for each query
     for call_number, query in enumerate(queries, start=1):
@@ -98,6 +100,10 @@ def retrieval_node(state: QAState) -> QAState:
 
             # Extract artifacts (document metadata)
             artifacts = _extract_artifacts_from_tool_message(tool_msg)
+
+            # Extract citations from this tool message
+            citations = _extract_citations_from_tool_message(tool_msg)
+            all_citations.update(citations)  # Merge citations from all calls
 
             # Build human-readable trace
             trace = _build_retrieval_trace(call_number, query, tool_msg, artifacts)
@@ -124,7 +130,8 @@ def retrieval_node(state: QAState) -> QAState:
     return {
         "context": context,
         "retrieval_traces": retrieval_trace_log,
-        "raw_context_blocks": raw_context_blocks if raw_context_blocks else None,
+        "raw_context_blocks": raw_context_blocks if raw_context_blocks else [],
+        "citations": all_citations,  # Store consolidated citations
     }
 
 

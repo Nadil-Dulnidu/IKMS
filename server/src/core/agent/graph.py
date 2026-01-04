@@ -92,4 +92,5 @@ def run_qa_flow(question: str) -> Dict[str, Any]:
 
 
 if __name__ == "__main__":
-    run_qa_flow("What are the finacials of XYZ Company Limited?")
+    result = run_qa_flow("What are the finacials of XYZ Company Limited?")
+    print(result)

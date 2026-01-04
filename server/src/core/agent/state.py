@@ -1,7 +1,7 @@
 """LangGraph state schema for the multi-agent QA flow."""
 
 # from typing import TypedDict
-from typing import List
+from typing import List, Dict
 from langgraph.graph import MessagesState
 from langchain_core.messages import BaseMessage
 from .response_modal import QueryPlan
@@ -14,7 +14,7 @@ class QAState(MessagesState):
     1. Query Planning Agent: analyzes question and creates search strategy
        - populates `query_plan`
     2. Retrieval Agent: performs multiple strategic retrieval calls
-       - populates `context`, `retrieval_traces`, and `raw_context_blocks`
+       - populates `context`, `retrieval_traces`, `raw_context_blocks`, and `citations`
     3. Context Critic Agent: filters and ranks retrieved chunks
        - populates `context` (filtered), `context_rationale`
     4. Summarization Agent: generates `draft_answer` from `question` + `context`
@@ -33,3 +33,8 @@ class QAState(MessagesState):
 
     # Context Critic fields
     context_rationale: List[str] = []
+
+    # Citation fields
+    citations: List[Dict[str, Dict]] = (
+        []
+    )  # Chunk ID → metadata mapping (page, snippet, source)

@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Dict
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 
 
@@ -29,12 +29,31 @@ def _extract_query_from_tool_message(tool_msg: ToolMessage) -> str:
 def _extract_artifacts_from_tool_message(tool_msg: ToolMessage) -> list:
     """Extract document artifacts from a ToolMessage.
 
-    The retrieval_tool returns (content, artifact) where artifact is a list of Documents.
-    This artifact is stored in tool_msg.artifact.
+    The retrieval_tool returns (content, artifact) where artifact is a dict with
+    'documents' and 'citations'. For backward compatibility, this returns the documents list.
     """
     if hasattr(tool_msg, "artifact") and tool_msg.artifact:
+        # New format: artifact is a dict with 'documents' and 'citations'
+        if isinstance(tool_msg.artifact, dict) and "documents" in tool_msg.artifact:
+            return tool_msg.artifact["documents"]
+        # Old format: artifact is a list of documents
         return tool_msg.artifact
     return []
+
+
+def _extract_citations_from_tool_message(tool_msg: ToolMessage) -> Dict[str, Dict]:
+    """Extract citation map from a ToolMessage.
+
+    The retrieval_tool returns (content, artifact) where artifact is a dict with
+    'documents' and 'citations'. This extracts the citations mapping.
+
+    Returns:
+        Dict mapping chunk IDs to metadata (page, snippet, source)
+    """
+    if hasattr(tool_msg, "artifact") and tool_msg.artifact:
+        if isinstance(tool_msg.artifact, dict) and "citations" in tool_msg.artifact:
+            return tool_msg.artifact["citations"]
+    return {}
 
 
 def _build_retrieval_trace(
