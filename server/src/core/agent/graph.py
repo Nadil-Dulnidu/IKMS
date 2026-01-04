@@ -6,7 +6,7 @@ from typing import Any, Dict
 from langgraph.constants import END, START
 from langgraph.graph import StateGraph
 
-from src.core.agent.agents import (
+from src.core.agent.nodes import (
     retrieval_node,
     summarization_node,
     verification_node,
