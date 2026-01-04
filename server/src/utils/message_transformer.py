@@ -11,16 +11,73 @@ from pydantic import BaseModel
 
 class MessagePart(BaseModel):
     """Individual part of a UI message (text, tool-call, etc.)"""
+
     type: str
     text: Optional[str] = None
+    url: Optional[str] = None
+    mediaType: Optional[str] = None
+    filename: Optional[str] = None
 
 
 class UIMessage(BaseModel):
     """Vercel AI SDK UI message format"""
+
     id: str
     role: str
     parts: Optional[List[MessagePart]] = None
     content: Optional[str] = None
+
+
+def extract_file(messages: List[Dict[str, Any]]) -> tuple[str, str]:
+    """
+    Extract the filename and URL from the latest file message.
+
+    This function:
+    1. Filters messages that contain file parts
+    2. Gets the last message from the filtered list
+    3. Returns both filename and URL
+
+    Args:
+        messages: List of UI messages from the frontend
+
+    Returns:
+        Tuple of (filename, url) from the latest file message.
+        Returns ("", "") if no file message found.
+
+    Example:
+        filename, url = extract_file(messages)
+        if url:
+            # Process the file
+            file_path = await download_and_save_file(url, filename)
+    """
+    if not messages:
+        return "", ""
+
+    # Filter messages that contain file parts
+    file_messages = []
+    for message in messages:
+        if "parts" in message and message["parts"]:
+            for part in message["parts"]:
+                if part.get("type") == "file" and part.get("url"):
+                    file_messages.append(message)
+                    break  # Found a file in this message, move to next message
+
+    # If no file messages found, return empty strings
+    if not file_messages:
+        return "", ""
+
+    # Get the last file message
+    last_file_message = file_messages[-1]
+
+    # Extract the filename and URL from the last file message
+    if "parts" in last_file_message and last_file_message["parts"]:
+        for part in last_file_message["parts"]:
+            if part.get("type") == "file" and part.get("url"):
+                filename = part.get("filename", "")
+                url = part.get("url", "")
+                return filename, url
+
+    return "", ""
 
 
 def extract_user_message(messages: List[Dict[str, Any]]) -> str:

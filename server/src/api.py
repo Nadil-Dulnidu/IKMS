@@ -1,15 +1,16 @@
-from fastapi import FastAPI, File, HTTPException, Request, UploadFile, status
+from fastapi import FastAPI, File, HTTPException, Request, UploadFile, status, Depends
 from fastapi.responses import JSONResponse
-from src.service import save_uploaded_file
+from src.service import save_uploaded_file, download_and_save_file
 from src.service import index_pdf_file
 from src.model import QuestionRequest, QAResponse, VercelChatRequest
 from src.service import answer_question
 from src.utils.http_headers import patch_vercel_headers
-from src.utils.message_transformer import extract_user_message
+from src.utils.message_transformer import extract_user_message, extract_file
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from src.service import stream_any_langgraph_graph, stream_travel_system_chat
 from src.core.agent.graph import get_qa_graph
+from src.auth.jwt import verify_clerk_token
 
 app = FastAPI(
     title="Multi agent knowledge management system",
@@ -39,33 +40,30 @@ async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONR
     )
 
 
-@app.post("/index-pdf", status_code=status.HTTP_200_OK)
-async def index_pdf(file: UploadFile = File(...)) -> dict | None:
-
-    if file.content_type not in ("application/pdf",):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Only PDF files are supported.",
-        )
-
-    file_path = await save_uploaded_file(file)
-    await index_pdf_file(file_path)
-
-    if file_path:
-        return {
-            "filename": file.filename,
-            "message": "File uploaded successfully.",
-        }
-
-
 @app.post("/qa", status_code=status.HTTP_200_OK)
-async def qa_endpoint(payload: VercelChatRequest):
-
+async def qa_endpoint(payload: VercelChatRequest, _token=Depends(verify_clerk_token)):
+    # Extract user message
     message = extract_user_message(payload.messages)
+
+    # Extract file info (filename and URL) if present
+    filename, file_url = extract_file(payload.messages)
+
+    # If file URL is present, download and index it
+    if file_url:
+        try:
+            # Download and save the file with the original filename
+            file_path = await download_and_save_file(file_url, filename)
+            # Index the downloaded PDF
+            await index_pdf_file(file_path)
+        except Exception as e:
+            print(f"Error processing file: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to process file: {str(e)}",
+            )
 
     # Delegate to the service layer which runs the multi-agent QA graph
     thread_id = payload.thread_id or payload.id
-    print(f"Thread ID: {thread_id}")
 
     response = StreamingResponse(
         stream_any_langgraph_graph(
