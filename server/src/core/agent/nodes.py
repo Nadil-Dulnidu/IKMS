@@ -23,6 +23,7 @@ from .utils import (
 from .agents import (
     query_plan_agent,
     retrieval_agent,
+    context_critic_agent,
     summarization_agent,
     verification_agent,
 )
@@ -124,6 +125,62 @@ def retrieval_node(state: QAState) -> QAState:
         "context": context,
         "retrieval_traces": retrieval_trace_log,
         "raw_context_blocks": raw_context_blocks if raw_context_blocks else None,
+    }
+
+
+def context_critic_node(state: QAState) -> QAState:
+    """Context Critic Agent node: filters and ranks retrieved chunks.
+
+    This node:
+    - Receives the raw context from retrieval_node
+    - Analyzes each chunk's relevance to the question
+    - Assigns relevance scores (HIGHLY RELEVANT / MARGINAL / IRRELEVANT)
+    - Filters out irrelevant chunks
+    - Reorders chunks by relevance
+    - Provides rationales for filtering decisions
+    - Stores filtered context and rationales in state
+    """
+    question = state["question"]
+    raw_context = state.get("context", "")
+
+    # If no context was retrieved, skip critic analysis
+    if not raw_context or raw_context.strip() == "":
+        return {
+            "context": "",
+            "context_rationale": ["No context available for analysis"],
+        }
+
+    # Prepare the input for the context critic
+    user_content = f"""Question: {question}
+
+Retrieved Context:
+{raw_context}
+
+Please analyze each chunk's relevance to the question, filter out irrelevant content, 
+and provide the filtered context with your rationales."""
+
+    # Invoke the context critic agent
+    result = context_critic_agent.invoke(
+        {"messages": [HumanMessage(content=user_content)]}
+    )
+
+    # Extract the structured response
+    critic_response = result.get("structured_response", None)
+
+    if critic_response:
+        # Get filtered context and rationales from the structured response
+        filtered_context = critic_response.filtered_context
+        context_rationale = critic_response.context_rationale
+    else:
+        # Fallback: use original context if critic fails
+        filtered_context = raw_context
+        context_rationale = [
+            "Context critic analysis unavailable - using original context"
+        ]
+
+    return {
+        "context": filtered_context,
+        "context_rationale": context_rationale,
     }
 
 

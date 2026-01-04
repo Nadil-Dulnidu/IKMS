@@ -15,16 +15,21 @@ class QAState(MessagesState):
        - populates `query_plan`
     2. Retrieval Agent: performs multiple strategic retrieval calls
        - populates `context`, `retrieval_traces`, and `raw_context_blocks`
-    3. Summarization Agent: generates `draft_answer` from `question` + `context`
-    4. Verification Agent: produces final `answer` from `question` + `context` + `draft_answer`
+    3. Context Critic Agent: filters and ranks retrieved chunks
+       - populates `context` (filtered), `context_rationale`
+    4. Summarization Agent: generates `draft_answer` from `question` + `context`
+    5. Verification Agent: produces final `answer` from `question` + `context` + `draft_answer`
     """
 
     question: str
-    query_plan: QueryPlan | None
-    context: str | None
-    draft_answer: str | None
-    answer: str | None
+    query_plan: QueryPlan | None = None
+    context: str = ""
+    draft_answer: str = ""
+    answer: str = ""
 
     # Multi-call retrieval transparency fields
-    retrieval_traces: str | None  # Human-readable log of all retrieval calls
-    raw_context_blocks: List[str] | None  # Individual context strings from each call
+    retrieval_traces: str = ""  # Human-readable log of all retrieval calls
+    raw_context_blocks: List[str] = []
+
+    # Context Critic fields
+    context_rationale: List[str] = []

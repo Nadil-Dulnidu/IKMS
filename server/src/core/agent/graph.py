@@ -8,6 +8,7 @@ from langgraph.graph import StateGraph
 
 from src.core.agent.nodes import (
     retrieval_node,
+    context_critic_node,
     summarization_node,
     verification_node,
     query_plan_node,
@@ -24,9 +25,11 @@ def create_qa_graph() -> Any:
     """Create and compile the linear multi-agent QA graph.
 
     The graph executes in order:
-    1. Retrieval Agent: gathers context from vector store
-    2. Summarization Agent: generates draft answer from context
-    3. Verification Agent: verifies and corrects the answer
+    1. Query Planning Agent: analyzes question and creates search strategy
+    2. Retrieval Agent: gathers context from vector store
+    3. Context Critic Agent: filters and ranks retrieved chunks
+    4. Summarization Agent: generates draft answer from filtered context
+    5. Verification Agent: verifies and corrects the answer
 
     Returns:
         Compiled graph ready for execution.
@@ -34,15 +37,17 @@ def create_qa_graph() -> Any:
     builder = StateGraph(QAState)
 
     # Add nodes for each agent
+    builder.add_node("query_plan", query_plan_node)
     builder.add_node("retrieval", retrieval_node)
+    builder.add_node("context_critic", context_critic_node)
     builder.add_node("summarization", summarization_node)
     builder.add_node("verification", verification_node)
-    builder.add_node("query_plan", query_plan_node)
 
-    # Define linear flow: START -> retrieval -> summarization -> verification -> END
+    # Define linear flow: START → query_plan → retrieval → context_critic → summarization → verification → END
     builder.add_edge(START, "query_plan")
     builder.add_edge("query_plan", "retrieval")
-    builder.add_edge("retrieval", "summarization")
+    builder.add_edge("retrieval", "context_critic")
+    builder.add_edge("context_critic", "summarization")
     builder.add_edge("summarization", "verification")
     builder.add_edge("verification", END)
 
