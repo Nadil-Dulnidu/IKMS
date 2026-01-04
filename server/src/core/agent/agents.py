@@ -8,9 +8,11 @@ from .prompts import (
     RETRIEVAL_SYSTEM_PROMPT,
     SUMMARIZATION_SYSTEM_PROMPT,
     VERIFICATION_SYSTEM_PROMPT,
+    QUERY_PLAN_SYSTEM_PROMPT,
 )
 from .state import QAState
 from .tools import retrieval_tool
+from .response_modal import QueryPlan
 
 
 def _extract_last_ai_content(messages: List[object]) -> str:
@@ -22,6 +24,13 @@ def _extract_last_ai_content(messages: List[object]) -> str:
 
 
 # Define agents at module level for reuse
+query_plan_agent = create_agent(
+    model=create_chat_model(),
+    tools=[],
+    system_prompt=QUERY_PLAN_SYSTEM_PROMPT,
+    response_format=QueryPlan,
+)
+
 retrieval_agent = create_agent(
     model=create_chat_model(),
     tools=[retrieval_tool],
@@ -41,43 +50,71 @@ verification_agent = create_agent(
 )
 
 
+def query_plan_node(state: QAState) -> QAState:
+    """Query Planning Agent node: analyzes question and creates search strategy.
+
+    This node:
+    - Sends the user's question to the Query Planning Agent.
+    - The agent analyzes the question and decomposes it into sub-questions.
+    - Returns a structured QueryPlan with search strategy and sub-questions.
+    - Stores the QueryPlan object in `state["query_plan"]`.
+    """
+    question = state["question"]
+
+    # Invoke the query planning agent with the user's question
+    result = query_plan_agent.invoke({"messages": [HumanMessage(content=question)]})
+
+    query_plan = result.get("structured_response", None)
+
+    return {
+        "query_plan": query_plan.model_dump(),
+    }
+
+
 def retrieval_node(state: QAState) -> QAState:
     """Retrieval Agent node: gathers context from vector store.
 
     This node:
-    - Sends the user's question to the Retrieval Agent.
+    - Uses sub-questions from query_plan if available, otherwise uses the original question.
+    - Sends each query to the Retrieval Agent.
     - The agent uses the attached retrieval tool to fetch document chunks.
     - Extracts the tool's content (CONTEXT string) from the ToolMessage.
-    - Stores the consolidated context string in `state["context"]`.
+    - Consolidates all contexts and stores in `state["context"]`.
     """
     question = state["question"]
+    query_plan = state["query_plan"]
 
-    result = retrieval_agent.invoke({"messages": [HumanMessage(content=question)]})
+    # Determine which queries to use for retrieval
+    queries = []
+    if query_plan and query_plan["sub_questions"]:
+        # Use decomposed sub-questions for focused retrieval
+        queries = query_plan["sub_questions"]
+    else:
+        # Fall back to original question
+        queries = [question]
 
-    messages = result.get("messages", [])
-    context = ""
-    ai_message = ""
-    tool_message = ""
+    all_contexts = []
+    all_messages = []
 
-    # Prefer the first AIMessage content (from retrieval_agent)
-    for msg in messages:
-        if isinstance(msg, AIMessage):
-            ai_message = msg
-            break
+    # Perform retrieval for each query
+    for query in queries:
+        result = retrieval_agent.invoke({"messages": [HumanMessage(content=query)]})
+        messages = result.get("messages", [])
+        all_messages.extend(messages)
 
-    # Prefer the last ToolMessage content (from retrieval_tool)
-    for msg in reversed(messages):
-        if isinstance(msg, ToolMessage):
-            tool_message = msg
-            break
+        # Extract context from ToolMessage
+        for msg in reversed(messages):
+            if isinstance(msg, ToolMessage):
+                all_contexts.append(msg.content)
+                break
 
-    context = tool_message.content
+    # Consolidate all contexts into a single string
+    if all_contexts:
+        context = "\n\n---\n\n".join(all_contexts)
+    else:
+        context = ""
 
-    return {
-        "context": context,
-        "messages": [ai_message],
-        "tool_message": tool_message,
-    }
+    return {"context": context}
 
 
 def summarization_node(state: QAState) -> QAState:
@@ -99,11 +136,8 @@ def summarization_node(state: QAState) -> QAState:
     messages = result.get("messages", [])
     draft_answer = _extract_last_ai_content(messages)
 
-    tool_message = state["tool_message"]
-
     return {
         "draft_answer": draft_answer,
-        "messages": [tool_message],
     }
 
 

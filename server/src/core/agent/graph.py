@@ -6,7 +6,12 @@ from typing import Any, Dict
 from langgraph.constants import END, START
 from langgraph.graph import StateGraph
 
-from src.core.agent.agents import retrieval_node, summarization_node, verification_node
+from src.core.agent.agents import (
+    retrieval_node,
+    summarization_node,
+    verification_node,
+    query_plan_node,
+)
 from src.core.agent.state import QAState
 from langchain.messages import HumanMessage
 from langgraph.checkpoint.memory import InMemorySaver
@@ -32,9 +37,11 @@ def create_qa_graph() -> Any:
     builder.add_node("retrieval", retrieval_node)
     builder.add_node("summarization", summarization_node)
     builder.add_node("verification", verification_node)
+    builder.add_node("query_plan", query_plan_node)
 
     # Define linear flow: START -> retrieval -> summarization -> verification -> END
-    builder.add_edge(START, "retrieval")
+    builder.add_edge(START, "query_plan")
+    builder.add_edge("query_plan", "retrieval")
     builder.add_edge("retrieval", "summarization")
     builder.add_edge("summarization", "verification")
     builder.add_edge("verification", END)
@@ -69,11 +76,7 @@ def run_qa_flow(question: str) -> Dict[str, Any]:
 
     initial_state: QAState = {
         "question": question,
-        "context": None,
-        "draft_answer": None,
-        "answer": None,
         "messages": [HumanMessage(content=question)],
-        "tool_message": None,
     }
 
     config = {"configurable": {"thread_id": "thread_01"}}
