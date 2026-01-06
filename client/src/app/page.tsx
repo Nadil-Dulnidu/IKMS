@@ -24,7 +24,6 @@ import {
 } from "@/components/ai-elements/prompt-input";
 import { Loader } from "@/components/ai-elements/loader";
 import { Tool, ToolHeader, ToolContent, ToolInput, ToolOutput } from "@/components/ai-elements/tool";
-import { Suggestions, Suggestion } from "@/components/ai-elements/suggestion";
 import Greeting from "@/components/Greeting";
 import Header from "@/components/Header";
 import { useUser, useAuth } from "@clerk/nextjs";
@@ -95,6 +94,17 @@ function ChatApp() {
   });
 
   const handleSubmit = (message: PromptInputMessage) => {
+
+    if (!isSignedIn) {
+      toast.warning("Please sign in to continue.", {
+        action: {
+          label: "Dismiss",
+          onClick: () => toast.dismiss(),
+        },
+      });
+      return;
+    }
+
     if (!message.text || !message.text.trim()) {
       return;
     }
@@ -106,10 +116,6 @@ function ChatApp() {
     });
 
     setInput("");
-  };
-
-  const handleSuggestionClick = (suggestion: string) => {
-    sendMessage({ text: suggestion });
   };
 
   const renderMessagePart = (part: MessagePart, index: number, messageId: string) => {
@@ -224,15 +230,6 @@ function ChatApp() {
             <ConversationScrollButton />
           </Conversation>
 
-          {/* Suggestions (only show when no messages) */}
-          {messages.length === 0 && isSignedIn && (
-            <Suggestions className="mb-4 shrink-0">
-              <Suggestion onClick={() => handleSuggestionClick("How can I organize my project documentation?")} suggestion="Organize project documentation" />
-              <Suggestion onClick={() => handleSuggestionClick("Help me categorize my research papers and notes")} suggestion="Categorize research materials" />
-              <Suggestion onClick={() => handleSuggestionClick("Create a knowledge base for my team")} suggestion="Create team knowledge base" />
-            </Suggestions>
-          )}
-
           {/* Input Area */}
           <PromptInputProvider>
             <PromptInput onSubmit={handleSubmit} className="mt-4 shrink-0">
@@ -252,7 +249,7 @@ function ChatApp() {
                     </PromptInputActionMenuContent>
                   </PromptInputActionMenu>
                 </PromptInputTools>
-                <PromptInputSubmit disabled={!input || !isSignedIn} status={status} size={"sm"} />
+                <PromptInputSubmit disabled={!input} status={status} size={"sm"} />
               </PromptInputFooter>
             </PromptInput>
           </PromptInputProvider>
