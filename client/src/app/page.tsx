@@ -190,7 +190,7 @@ function ChatApp() {
                 <div className="flex flex-col items-center justify-center h-full gap-6">
                   <div className="text-center space-y-2">
                     {isSignedIn && isLoaded ? (
-                      <Greeting name={user?.firstName || "User"} className="text-3xl" showIcon={false} />
+                      <Greeting name={user?.firstName || "User"} className="text-3xl" showIcon={true} />
                     ) : (
                       <p className="text-3xl font-semibold tracking-tight">Organize and manage your knowledge.</p>
                     )}
