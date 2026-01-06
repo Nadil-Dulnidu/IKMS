@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { ClerkProvider } from "@clerk/nextjs";
+import { Toaster } from "@/components/ui/sonner";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -21,12 +22,11 @@ export default function RootLayout({
   return (
     <ClerkProvider>
       <html lang="en">
-        <body
-          className={`${inter.variable} antialiased`}
-        >
+        <body className={`${inter.variable} antialiased`}>
           {children}
-      </body>
-    </html>
+          <Toaster position="top-center" />
+        </body>
+      </html>
     </ClerkProvider>
   );
 }

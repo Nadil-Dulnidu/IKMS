@@ -29,6 +29,7 @@ import Greeting from "@/components/Greeting";
 import Header from "@/components/Header";
 import { useUser, useAuth } from "@clerk/nextjs";
 import { BACKEND_URL } from "@/config/env";
+import { toast } from "sonner";
 
 // Type definitions for message parts
 type TextPart = {
@@ -57,8 +58,6 @@ function ChatApp() {
   const { isSignedIn, isLoaded, getToken } = useAuth();
   const { user } = useUser();
 
-  const firstName = user?.firstName || "";
-
   /* eslint-disable */
   const transport = useMemo(
     () =>
@@ -72,20 +71,30 @@ function ChatApp() {
         },
         body: () => {
           return {
-            thread_id: threadId,
-            user_name: firstName,
+            thread_id: threadId
           };
         },
       }),
-    [threadId, user]
+    [threadId]
   );
 
   const { messages, sendMessage, status } = useChat({
     transport,
+    onError: (error) => {
+      if (error instanceof Error) {
+        const errorData = JSON.parse(error.message);
+        toast.error(`${errorData.detail}`,{
+          action: {
+            label: "Dismiss",
+            onClick: () => toast.dismiss(),
+          },
+        });
+        return;
+      }
+    },
   });
 
   const handleSubmit = (message: PromptInputMessage) => {
-
     if (!message.text || !message.text.trim()) {
       return;
     }
@@ -108,7 +117,7 @@ function ChatApp() {
     if (part.type === "text") {
       const textPart = part as TextPart;
       return (
-        <Message key={`${messageId}-${index}`} from="assistant">
+        <Message key={`${messageId}-${index}`} from="assistant" className="my-4">
           <MessageContent>
             <MessageResponse>{textPart.text}</MessageResponse>
           </MessageContent>
