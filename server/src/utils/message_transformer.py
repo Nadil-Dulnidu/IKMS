@@ -7,6 +7,7 @@ Similar to how the AI SDK handles UI message → Model message conversion.
 
 from typing import List, Dict, Any, Optional
 from pydantic import BaseModel
+from fastapi import HTTPException, status
 
 
 class MessagePart(BaseModel):
@@ -26,6 +27,38 @@ class UIMessage(BaseModel):
     role: str
     parts: Optional[List[MessagePart]] = None
     content: Optional[str] = None
+
+
+def check_messages_has_file(messages: List[Dict[str, Any]]) -> bool:
+    """Check if any message in the list has a file part.
+
+    Args:
+        messages (List[Dict[str, Any]]): List of UI messages
+
+    Returns:
+        bool: True if any message has a file part, False otherwise
+    """
+    for message in messages:
+        if "parts" in message and message["parts"]:
+            for part in message["parts"]:
+                if part.get("type") == "file" and part.get("url"):
+                    return True
+    return False
+
+
+def check_file_media_type(messages: List[Dict[str, Any]]) -> bool:
+    """Check if any message in the list has a file part.
+
+    Args:
+        messages (List[Dict[str, Any]]): List of UI messages
+
+    Returns:
+        bool: True if any message has a file part, False otherwise
+    """
+    for message in messages:
+        if "mediaType" in message and message["mediaType"] == "application/pdf":
+            return True
+    return False
 
 
 def extract_file(messages: List[Dict[str, Any]]) -> tuple[str, str]:
@@ -50,6 +83,7 @@ def extract_file(messages: List[Dict[str, Any]]) -> tuple[str, str]:
             # Process the file
             file_path = await download_and_save_file(url, filename)
     """
+
     if not messages:
         return "", ""
 
