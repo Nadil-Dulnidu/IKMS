@@ -10,37 +10,6 @@ def _extract_last_ai_content(messages: List[object]) -> str:
     return ""
 
 
-def _extract_query_from_tool_message(tool_msg: ToolMessage) -> str:
-    """Extract the original query from a ToolMessage.
-
-    The query is stored in the tool_msg.name or can be inferred from context.
-    For now, we'll extract it from the artifact if available.
-    """
-    # Try to get from the tool call metadata if available
-    if hasattr(tool_msg, "additional_kwargs") and tool_msg.additional_kwargs:
-        query = tool_msg.additional_kwargs.get("query", "Unknown query")
-        if query != "Unknown query":
-            return query
-
-    # Fallback: return a placeholder
-    return "Query information not available"
-
-
-def _extract_artifacts_from_tool_message(tool_msg: ToolMessage) -> list:
-    """Extract document artifacts from a ToolMessage.
-
-    The retrieval_tool returns (content, artifact) where artifact is a dict with
-    'documents' and 'citations'. For backward compatibility, this returns the documents list.
-    """
-    if hasattr(tool_msg, "artifact") and tool_msg.artifact:
-        # New format: artifact is a dict with 'documents' and 'citations'
-        if isinstance(tool_msg.artifact, dict) and "documents" in tool_msg.artifact:
-            return tool_msg.artifact["documents"]
-        # Old format: artifact is a list of documents
-        return tool_msg.artifact
-    return []
-
-
 def _extract_citations_from_tool_message(tool_msg: ToolMessage) -> Dict[str, Dict]:
     """Extract citation map from a ToolMessage.
 
@@ -54,41 +23,6 @@ def _extract_citations_from_tool_message(tool_msg: ToolMessage) -> Dict[str, Dic
         if isinstance(tool_msg.artifact, dict) and "citations" in tool_msg.artifact:
             return tool_msg.artifact["citations"]
     return {}
-
-
-def _build_retrieval_trace(
-    call_number: int, query: str, tool_msg: ToolMessage, artifacts: list
-) -> str:
-    """Build a human-readable trace for a single retrieval call.
-
-    Args:
-        call_number: The sequential number of this retrieval call
-        query: The query string used for retrieval
-        tool_msg: The ToolMessage containing the retrieval results
-        artifacts: List of Document objects retrieved
-
-    Returns:
-        A formatted string describing this retrieval call
-    """
-    chunks_retrieved = len(artifacts)
-
-    # Extract unique page numbers from artifacts
-    page_numbers = set()
-    if artifacts:
-        for doc in artifacts:
-            if hasattr(doc, "metadata") and "page" in doc.metadata:
-                page_numbers.add(doc.metadata["page"])
-
-    pages_str = (
-        ", ".join(str(p) for p in sorted(page_numbers)) if page_numbers else "N/A"
-    )
-
-    trace = f"""Retrieval Call {call_number}:
-                Query: "{query}"
-                Chunks Retrieved: {chunks_retrieved}
-                Sources: Pages {pages_str}"""
-
-    return trace
 
 
 def _build_structured_context(
@@ -107,3 +41,50 @@ def _build_structured_context(
     return f"""=== RETRIEVAL CALL {call_number} (query: "{query}") ===
 
 {context_content}"""
+
+
+def format_final_answer_with_citations(answer: str, citations: Dict[str, Dict]) -> str:
+    """
+    Format the final answer with citations as production-grade markdown.
+
+    Args:
+        answer: The verified final answer text (may contain citation markers like [C1], [C2])
+        citations: Dict mapping chunk IDs (e.g., "C1") to metadata (page, snippet, source)
+
+    Returns:
+        Beautifully formatted markdown with answer and references section
+    """
+    sections = []
+
+    # Add the main answer section
+    sections.append("## 💡 Answer")
+    sections.append("")
+    sections.append(answer)
+    sections.append("")
+    sections.append("\n---")
+
+    # Add citations/references section if citations exist
+    if citations and len(citations) > 0:
+        sections.append("\n## 📚 References")
+        sections.append("")
+
+        # Sort citations by chunk ID (C1, C2, C3, etc.)
+        sorted_citations = sorted(citations.items(), key=lambda x: x[0])
+
+        for chunk_id, metadata in sorted_citations:
+            # Extract metadata fields
+            page = metadata.get("page", "N/A")
+            snippet = metadata.get("snippet", "")
+            source = metadata.get("source", "Document")
+
+            # Format each citation
+            sections.append(f"**[{chunk_id}]** - {source}, Page {page}")
+            if snippet:
+                # Truncate snippet if too long
+                max_snippet_length = 150
+                if len(snippet) > max_snippet_length:
+                    snippet = snippet[:max_snippet_length] + "..."
+                sections.append(f"> {snippet}")
+            sections.append("")
+
+    return "\n".join(sections).strip()

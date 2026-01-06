@@ -12,6 +12,9 @@ from src.core.agent.nodes import (
     summarization_node,
     verification_node,
     query_plan_node,
+    extract_tool_inputs_node,
+    extract_tool_outputs_node,
+    should_stop_retrieval,
 )
 from src.core.agent.state import QAState
 from langchain.messages import HumanMessage
@@ -42,11 +45,21 @@ def create_qa_graph() -> Any:
     builder.add_node("context_critic", context_critic_node)
     builder.add_node("summarization", summarization_node)
     builder.add_node("verification", verification_node)
+    builder.add_node("extract_tool_inputs", extract_tool_inputs_node)
+    builder.add_node("extract_tool_outputs", extract_tool_outputs_node)
 
     # Define linear flow: START → query_plan → retrieval → context_critic → summarization → verification → END
     builder.add_edge(START, "query_plan")
     builder.add_edge("query_plan", "retrieval")
-    builder.add_edge("retrieval", "context_critic")
+    builder.add_edge("retrieval", "extract_tool_inputs")
+    builder.add_edge("extract_tool_inputs", "extract_tool_outputs")
+
+    builder.add_conditional_edges(
+        "extract_tool_outputs",
+        should_stop_retrieval,
+        {True: "context_critic", False: "extract_tool_inputs"},
+    )
+
     builder.add_edge("context_critic", "summarization")
     builder.add_edge("summarization", "verification")
     builder.add_edge("verification", END)

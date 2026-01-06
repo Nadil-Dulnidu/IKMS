@@ -14,7 +14,7 @@ class QAState(MessagesState):
     1. Query Planning Agent: analyzes question and creates search strategy
        - populates `query_plan`
     2. Retrieval Agent: performs multiple strategic retrieval calls
-       - populates `context`, `retrieval_traces`, `raw_context_blocks`, and `citations`
+       - populates `context` and `citations`
     3. Context Critic Agent: filters and ranks retrieved chunks
        - populates `context` (filtered), `context_rationale`
     4. Summarization Agent: generates `draft_answer` from `question` + `context`
@@ -28,10 +28,6 @@ class QAState(MessagesState):
     draft_answer: str = ""
     answer: str = ""
 
-    # Multi-call retrieval transparency fields
-    retrieval_traces: str = ""  # Human-readable log of all retrieval calls
-    raw_context_blocks: List[str] = []
-
     # Context Critic fields
     context_rationale: List[str] = []
 
@@ -39,3 +35,8 @@ class QAState(MessagesState):
     citations: List[Dict[str, Dict]] = (
         []
     )  # Chunk ID → metadata mapping (page, snippet, source)
+
+    # Tool extraction fields
+    tool_inputs: List[Dict] = []  # Extracted tool call inputs from AI messages
+    tool_outputs: List[Dict] = []
+    retrieval_count: int = 0  # Extracted tool outputs from ToolMessages

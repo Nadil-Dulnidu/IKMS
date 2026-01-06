@@ -9,6 +9,7 @@ from langchain_openai import OpenAIEmbeddings
 from langchain_pymupdf4llm import PyMuPDF4LLMLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders.parsers import LLMImageBlobParser
+from fastapi import HTTPException, status
 
 from src.config import get_settings
 from src.core.llm import create_chat_model
@@ -41,6 +42,30 @@ def _get_vector_store(user_id: str) -> PineconeVectorStore:
     )
 
 
+def _check_namespace_exists(user_id: str) -> bool:
+    """
+    Check if a user's namespace exists and contains documents.
+
+    Args:
+        user_id: The user ID to check
+
+    Returns:
+        True if namespace exists and has documents, False otherwise
+    """
+    pc = Pinecone(api_key=settings.pinecone_api_key)
+    index = pc.Index(settings.pinecone_index_name)
+
+    # Get index stats for the specific namespace
+    stats = index.describe_index_stats()
+
+    # Check if namespace exists and has vectors
+    if "namespaces" in stats and user_id in stats["namespaces"]:
+        vector_count = stats["namespaces"][user_id].get("vector_count", 0)
+        return vector_count > 0
+
+    return False
+
+
 def get_retriever(user_id: str, k: int | None = None):
     """
     Get a retriever instance from the vector store for a specific user.
@@ -52,6 +77,7 @@ def get_retriever(user_id: str, k: int | None = None):
     Returns:
         Retriever instance configured for the specific user
     """
+
     if k is None:
         k = settings.retrieval_k
     vector_store = _get_vector_store(user_id)

@@ -41,10 +41,8 @@ async def stream_travel_system_chat(
     config = {"configurable": {"thread_id": thread_id}}
 
     initial_state: QAState = {
+        "user_id": user_id,
         "question": message,
-        "context": None,
-        "draft_answer": None,
-        "answer": None,
         "messages": [HumanMessage(content=message)],
     }
 
