@@ -13,6 +13,9 @@ from fastapi import HTTPException, status
 
 from src.config import get_settings
 from src.core.llm import create_chat_model
+from src.config.logging import get_logger
+
+logger = get_logger(__name__)
 
 settings = get_settings()
 
@@ -96,8 +99,28 @@ def retrieve(query: str, user_id: str, k: int | None = None) -> List[Document]:
     Returns:
         List of relevant documents from the user's namespace
     """
+    logger.info(
+        "Retrieving documents for query",
+        extra={
+            "user": user_id,
+            "action": "vector_retrieve_start",
+            "k": k or settings.retrieval_k,
+        },
+    )
+
     retriever = get_retriever(user_id, k=k)
-    return retriever.invoke(query)
+    documents = retriever.invoke(query)
+
+    logger.info(
+        f"Retrieved {len(documents)} documents",
+        extra={
+            "user": user_id,
+            "action": "vector_retrieve_complete",
+            "doc_count": len(documents),
+        },
+    )
+
+    return documents
 
 
 def index_documents(file_path: Path, user_id: str) -> int:
@@ -111,19 +134,51 @@ def index_documents(file_path: Path, user_id: str) -> int:
     Returns:
         Number of chunks indexed
     """
-    loader = PyMuPDF4LLMLoader(
-        str(file_path),
-        mode="page",
-        # extract_images=True,
-        # image_parser=LLMImageBlobParser(
-        #         model=create_chat_model()
-        #     ),
+    logger.info(
+        f"Starting document indexing: {file_path.name}",
+        extra={
+            "user": user_id,
+            "action": "vector_index_start",
+            "filename": file_path.name,
+        },
     )
-    docs = loader.load()
 
-    text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
-    texts = text_splitter.split_documents(docs)
+    try:
+        loader = PyMuPDF4LLMLoader(
+            str(file_path),
+            mode="page",
+            # extract_images=True,
+            # image_parser=LLMImageBlobParser(
+            #         model=create_chat_model()
+            #     ),
+        )
+        docs = loader.load()
 
-    vector_store = _get_vector_store(user_id)
-    vector_store.add_documents(texts)
-    return len(texts)
+        text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
+        texts = text_splitter.split_documents(docs)
+
+        vector_store = _get_vector_store(user_id)
+        vector_store.add_documents(texts)
+
+        logger.info(
+            f"Document indexed successfully: {file_path.name}",
+            extra={
+                "user": user_id,
+                "action": "vector_index_complete",
+                "filename": file_path.name,
+                "chunk_count": len(texts),
+            },
+        )
+
+        return len(texts)
+    except Exception as e:
+        logger.error(
+            f"Failed to index document: {str(e)}",
+            extra={
+                "user": user_id,
+                "action": "vector_index_error",
+                "filename": file_path.name,
+            },
+            exc_info=True,
+        )
+        raise

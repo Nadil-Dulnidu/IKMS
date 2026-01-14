@@ -36,7 +36,6 @@ Usage:
 
 import json
 import uuid
-import logging
 from typing import AsyncIterator, Dict, Any, Optional, Callable
 from datetime import datetime
 
@@ -44,8 +43,9 @@ from langgraph.graph import StateGraph
 from langchain_core.messages import BaseMessage, AIMessage, ToolMessage
 
 from src.utils.message_extractors import default_message_extractor
+from src.config.logging import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class LangGraphToVercelAdapter:
@@ -490,9 +490,6 @@ class LangGraphToVercelAdapter:
                 stream_mode="values",
             ):
                 chunk_count += 1
-                print(f"\n[ADAPTER] ===== Received chunk #{chunk_count} =====")
-                print(f"[ADAPTER] Chunk type: {type(chunk)}")
-                print(f"[ADAPTER] Chunk keys: {list(chunk.keys())}")
                 logger.info(
                     f"[ADAPTER] Received chunk #{chunk_count}: {list(chunk.keys())}"
                 )
@@ -540,12 +537,10 @@ class LangGraphToVercelAdapter:
         """
         # With stream_mode="values", chunk IS the state dict
         state = chunk
-        print(f"[STATE] Processing state with keys: {list(state.keys())}")
         logger.info(f"[STATE] Processing state with keys: {list(state.keys())}")
 
         # Check for interrupt first
         if "__interrupt__" in state:
-            print(f"[STATE] Interrupt detected")
             logger.info(f"[STATE] Interrupt detected")
             async for sse_event in self._handle_interrupt(state):
                 yield sse_event
@@ -554,7 +549,6 @@ class LangGraphToVercelAdapter:
         # Extract and stream messages
         if "messages" in state:
             messages = state["messages"]
-            print(f"[STATE] Found {len(messages) if messages else 0} messages")
             logger.info(f"[STATE] Found {len(messages) if messages else 0} messages")
 
             if messages:
@@ -566,7 +560,6 @@ class LangGraphToVercelAdapter:
                 )
                 # Get the last message (most recent addition)
                 last_message = messages[-1]
-                print(f"[STATE] Last message type: {type(last_message)}")
                 logger.info(f"[STATE] Last message type: {type(last_message)}")
 
                 # Handle different message types
@@ -577,9 +570,6 @@ class LangGraphToVercelAdapter:
 
                 if not should_stream:
                     message_type = type(last_message).__name__
-                    print(
-                        f"[STATE] Skipping {message_type} message (only stream AI and Tool messages)"
-                    )
                     logger.info(
                         f"[STATE] Skipping {message_type} message (only stream AI and Tool messages)"
                     )
@@ -606,9 +596,6 @@ class LangGraphToVercelAdapter:
                                 # Not valid JSON, use as string
                                 tool_output = content
 
-                        print(
-                            f"[STATE] Emitting tool-output-available for tool_call_id: {tool_call_id}"
-                        )
                         logger.info(
                             f"[STATE] Emitting tool-output-available for tool_call_id: {tool_call_id}"
                         )
@@ -638,9 +625,6 @@ class LangGraphToVercelAdapter:
                 else:
                     content = str(last_message)
 
-                print(
-                    f"[STATE] Extracted content length: {len(content) if content else 0}"
-                )
                 logger.info(
                     f"[STATE] Extracted content length: {len(content) if content else 0}"
                 )
@@ -650,7 +634,6 @@ class LangGraphToVercelAdapter:
 
                 # Create unique message ID for this message
                 # message_id = self._create_message_id()
-                print(f"[STATE] Streaming message with ID: {message_id}")
                 logger.info(f"[STATE] Streaming message with ID: {message_id}")
 
                 # Always send message start event (per Vercel protocol)
@@ -667,7 +650,6 @@ class LangGraphToVercelAdapter:
                     reasoning = self._extract_reasoning(last_message)
                     if reasoning and reasoning.strip():
                         reasoning_id = self._create_message_id()
-                        print(f"[STATE] Streaming reasoning with ID: {reasoning_id}")
                         logger.info(
                             f"[STATE] Streaming reasoning with ID: {reasoning_id}"
                         )
@@ -776,9 +758,6 @@ class LangGraphToVercelAdapter:
             Text events with interrupt message, then finish event
         """
         interrupt_list = state_update.get("__interrupt__", [])
-        print(
-            f"[INTERRUPT] Interrupt list length: {len(interrupt_list) if isinstance(interrupt_list, list) else 'N/A'}"
-        )
         logger.info(
             f"[INTERRUPT] Interrupt list type: {type(interrupt_list)}, length: {len(interrupt_list) if isinstance(interrupt_list, list) else 'N/A'}"
         )
@@ -793,7 +772,6 @@ class LangGraphToVercelAdapter:
             # Interrupt objects have a .value attribute
             if hasattr(interrupt_obj, "value"):
                 interrupt_message = str(interrupt_obj.value)
-                print(f"[INTERRUPT] Extracted message: {interrupt_message[:100]}...")
                 logger.info(
                     f"[INTERRUPT] Extracted message from .value: {interrupt_message}"
                 )
@@ -807,7 +785,6 @@ class LangGraphToVercelAdapter:
         # Stream the interrupt message as text events (so frontend displays it)
         if interrupt_message:
             message_id = self._create_message_id()
-            print(f"[INTERRUPT] Streaming interrupt message with ID: {message_id}")
             logger.info(
                 f"[INTERRUPT] Streaming interrupt message with ID: {message_id}"
             )
@@ -843,7 +820,6 @@ class LangGraphToVercelAdapter:
             )
 
         # Send finish event with interrupt reason
-        print(f"[INTERRUPT] Sending finish event")
         logger.info(f"[INTERRUPT] Sending finish event with interrupt reason")
         yield self._format_sse_event(
             {

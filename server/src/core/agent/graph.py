@@ -19,6 +19,9 @@ from src.core.agent.nodes import (
 from src.core.agent.state import QAState
 from langchain.messages import HumanMessage
 from langgraph.checkpoint.memory import InMemorySaver
+from src.config.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 memory_saver = InMemorySaver()
@@ -37,6 +40,8 @@ def create_qa_graph() -> Any:
     Returns:
         Compiled graph ready for execution.
     """
+    logger.info("Creating QA graph", extra={"action": "graph_create_start"})
+
     builder = StateGraph(QAState)
 
     # Add nodes for each agent
@@ -64,12 +69,17 @@ def create_qa_graph() -> Any:
     builder.add_edge("summarization", "verification")
     builder.add_edge("verification", END)
 
+    logger.info(
+        "QA graph created successfully", extra={"action": "graph_create_complete"}
+    )
+
     return builder.compile(checkpointer=memory_saver)
 
 
 @lru_cache(maxsize=1)
 def get_qa_graph() -> Any:
     """Get the compiled QA graph instance (singleton via LRU cache)."""
+    logger.debug("Retrieving QA graph instance", extra={"action": "graph_get"})
     return create_qa_graph()
 
 

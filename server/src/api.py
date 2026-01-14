@@ -17,11 +17,20 @@ from src.service import stream_any_langgraph_graph, stream_travel_system_chat
 from src.core.agent.graph import get_qa_graph
 from src.auth.jwt import verify_clerk_token
 from src.core.retrieval.vector_store import _check_namespace_exists
+from src.config.logging import get_logger
+
+logger = get_logger(__name__)
 
 app = FastAPI(
-    title="Multi agent knowledge management system",
+    title="Intelligent Knowledge Management System (IKMS)",
     description="A system to manage knowledge using multiple agents.",
     version="0.1.0",
+    openapi_tags=[
+        {
+            "name": "Chat",
+            "description": "Chat with the system",
+        }
+    ],
 )
 
 app.add_middleware(
@@ -50,14 +59,41 @@ async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONR
     if isinstance(exc, HTTPException):
         raise exc
 
+    logger.error(
+        f"Unhandled exception: {str(exc)}",
+        extra={"action": "unhandled_exception", "location": f"{request.url.path}"},
+        exc_info=True,
+    )
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         content={"detail": "Internal server error"},
     )
 
 
-@app.post("/qa", status_code=status.HTTP_200_OK)
-async def qa_endpoint(payload: VercelChatRequest, token=Depends(verify_clerk_token)):
+@app.get("/", status_code=status.HTTP_200_OK, tags=["Chat"])
+async def root():
+    """
+    Endpoint for the root of the API.
+
+    Returns:
+        dict: A dictionary containing a message indicating that the system is healthy.
+    """
+    return {"message": "Welcome to IKMS"}
+
+
+@app.get("/health", status_code=status.HTTP_200_OK, tags=["Chat"])
+async def health():
+    """
+    Endpoint for checking the health of the system.
+
+    Returns:
+        dict: A dictionary containing a message indicating that the system is healthy.
+    """
+    return {"message": "IKMS is healthy"}
+
+
+@app.post("/chat", status_code=status.HTTP_200_OK, tags=["Chat"])
+async def chat_endpoint(payload: VercelChatRequest, token=Depends(verify_clerk_token)):
     """
     Endpoint for processing user queries using the Vercel AI SDK format.
 
@@ -78,6 +114,10 @@ async def qa_endpoint(payload: VercelChatRequest, token=Depends(verify_clerk_tok
 
     # Check if user ID is present in token
     if not user_id:
+        logger.warning(
+            "QA request rejected: User ID not found in token",
+            extra={"action": "qa_request_unauthorized"},
+        )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="User ID not found in token",
@@ -87,6 +127,10 @@ async def qa_endpoint(payload: VercelChatRequest, token=Depends(verify_clerk_tok
     if check_messages_has_file(payload.messages):
         # Check if file is a PDF
         if not check_file_media_type(payload.messages):
+            logger.warning(
+                "File upload rejected: Invalid file type",
+                extra={"user": user_id, "action": "file_upload_invalid_type"},
+            )
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="File must be a PDF",
@@ -100,7 +144,24 @@ async def qa_endpoint(payload: VercelChatRequest, token=Depends(verify_clerk_tok
                 file_path = await save_file_from_data_url(file_url, filename)
                 # Index the downloaded PDF into user's namespace
                 await index_pdf_file(file_path, user_id)
+                logger.info(
+                    f"File indexed successfully: {filename}",
+                    extra={
+                        "user": user_id,
+                        "action": "file_upload_complete",
+                        "filename": filename,
+                    },
+                )
             except Exception as e:
+                logger.error(
+                    f"Failed to process file: {str(e)}",
+                    extra={
+                        "user": user_id,
+                        "action": "file_upload_failed",
+                        "filename": filename,
+                    },
+                    exc_info=True,
+                )
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail=f"Failed to process file: {str(e)}",
@@ -108,6 +169,10 @@ async def qa_endpoint(payload: VercelChatRequest, token=Depends(verify_clerk_tok
     else:
         # Check if user has any documents in their namespace
         if not _check_namespace_exists(user_id):
+            logger.warning(
+                "QA request rejected: No documents found for user",
+                extra={"user": user_id, "action": "qa_request_no_documents"},
+            )
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="No documents found. Please upload a document before asking questions.",
@@ -119,6 +184,14 @@ async def qa_endpoint(payload: VercelChatRequest, token=Depends(verify_clerk_tok
     # Delegate to the service layer which runs the multi-agent QA graph
     thread_id = payload.thread_id or payload.id
 
+    logger.info(
+        "QA request received",
+        extra={
+            "user": user_id,
+            "action": "qa_request_start",
+            "thread_id": payload.thread_id or payload.id,
+        },
+    )
     response = StreamingResponse(
         stream_any_langgraph_graph(
             graph=get_qa_graph(),
