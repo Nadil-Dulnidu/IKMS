@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 const Header = () => {
   return (
     <div className="pb-4 flex justify-between">
-      <h1 className="text-2xl font-bold">IKMS</h1>
+      <h1 className="text-2xl font-bold text-primary">IKMS</h1>
       <div className="flex items-center">
         <SignedIn>
           <UserButton

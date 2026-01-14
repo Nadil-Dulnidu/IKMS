@@ -16,6 +16,7 @@ from langchain_core.messages import HumanMessage
 from src.utils.langgraph_vercel_adapter import stream_langgraph_to_vercel
 from src.core.agent.state import QAState
 from src.core.agent.graph import get_qa_graph
+from src.core.agent.checkpointer import get_postgres_checkpointer
 
 
 async def stream_travel_system_chat(
@@ -38,6 +39,8 @@ async def stream_travel_system_chat(
     Yields:
         SSE-formatted strings following Vercel Data Stream Protocol
     """
+    checkpointer = await get_postgres_checkpointer()
+
     config = {"configurable": {"thread_id": thread_id}}
 
     initial_state: QAState = {
@@ -50,7 +53,7 @@ async def stream_travel_system_chat(
     # No need to specify stream_mode or graph-specific logic
     # Configure custom data fields to stream alongside messages
     async for event in stream_langgraph_to_vercel(
-        graph=get_qa_graph(),
+        graph=get_qa_graph(checkpointer=checkpointer),
         initial_state=initial_state,
         config=config,
         custom_data_fields=[],

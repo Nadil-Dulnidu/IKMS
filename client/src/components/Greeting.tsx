@@ -23,9 +23,9 @@ const getTimeOfDay = (): TimeOfDay => {
 };
 
 const greetingConfig: Record<TimeOfDay, { text: string; emoji: string }> = {
-  morning: { text: "Good Morning", emoji: "🌅" },
-  afternoon: { text: "Good Afternoon", emoji: "☀️" },
-  evening: { text: "Good Evening", emoji: "🌙" },
+  morning: { text: "Good Morning,", emoji: "🌅" },
+  afternoon: { text: "Good Afternoon,", emoji: "☀️" },
+  evening: { text: "Good Evening,", emoji: "🌙" },
 };
 
 const Greeting = ({ name, className = "", showIcon = false }: GreetingProps) => {
@@ -46,7 +46,7 @@ const Greeting = ({ name, className = "", showIcon = false }: GreetingProps) => 
     <h2 className={`text-2xl font-semibold ${className}`}>
       {showIcon && <span className="mr-2">{emoji}</span>}
       {text}
-      {name && <span className="text-primary">, {name}</span>}
+      {name && <span className="text-primary"> {name}</span>}
     </h2>
   );
 };

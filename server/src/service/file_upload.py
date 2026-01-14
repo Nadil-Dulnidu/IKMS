@@ -4,6 +4,9 @@ from pathlib import Path
 import os
 import base64
 import re
+from src.config.logging import get_logger
+
+logger = get_logger(__name__)
 
 settings = get_settings()
 
@@ -46,6 +49,10 @@ async def save_file_from_data_url(data_url: str, filename: str = None) -> Path:
     # Format: data:[<mediatype>][;base64],<data>
     match = re.match(r"data:([^;]+);base64,(.+)", data_url)
     if not match:
+        logger.error(
+            "Invalid data URL format provided",
+            extra={"action": "file_save_invalid_format"},
+        )
         raise ValueError("Invalid data URL format")
 
     mime_type = match.group(1)
@@ -55,6 +62,11 @@ async def save_file_from_data_url(data_url: str, filename: str = None) -> Path:
     try:
         file_content = base64.b64decode(base64_data)
     except Exception as e:
+        logger.error(
+            f"Failed to decode base64 data: {str(e)}",
+            extra={"action": "file_save_decode_error"},
+            exc_info=True,
+        )
         raise ValueError(f"Failed to decode base64 data: {e}")
 
     # Generate filename if not provided
@@ -72,6 +84,22 @@ async def save_file_from_data_url(data_url: str, filename: str = None) -> Path:
 
     # Save to disk
     file_path = upload_dir / filename
-    file_path.write_bytes(file_content)
+    try:
+        file_path.write_bytes(file_content)
+        logger.info(
+            f"File saved successfully: {filename}",
+            extra={
+                "action": "file_save_success",
+                "uploaded_filename": filename,
+                "file_size": len(file_content),
+            },
+        )
+    except Exception as e:
+        logger.error(
+            f"Failed to save file: {str(e)}",
+            extra={"action": "file_save_error", "uploaded_filename": filename},
+            exc_info=True,
+        )
+        raise
 
     return file_path

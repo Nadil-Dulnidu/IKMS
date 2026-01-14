@@ -25,6 +25,9 @@ from .agents import (
     create_summarization_agent,
     create_verification_agent,
 )
+from src.config.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 def query_plan_node(state: QAState) -> QAState:
@@ -38,6 +41,11 @@ def query_plan_node(state: QAState) -> QAState:
     - Stores the QueryPlan object in `state["query_plan"]`.
     """
     question = state["question"]
+    user_id = state.get("user_id", "unknown")
+
+    logger.info(
+        "Starting query planning", extra={"user": user_id, "action": "query_plan_start"}
+    )
 
     # Create query plan agent (user-independent)
     query_plan_agent = create_query_plan_agent()
@@ -48,6 +56,14 @@ def query_plan_node(state: QAState) -> QAState:
     query_plan = result.get("structured_response", None)
 
     if query_plan:
+        logger.info(
+            f"Query plan created with {len(query_plan.sub_questions)} sub-questions",
+            extra={
+                "user": user_id,
+                "action": "query_plan_complete",
+                "sub_question_count": len(query_plan.sub_questions),
+            },
+        )
         # Generate markdown representation for frontend display
         markdown_content = query_plan.generate_markdown()
         query_plan.markdown = markdown_content
@@ -79,6 +95,10 @@ def retrieval_node(state: QAState) -> QAState:
     question = state["question"]
     query_plan = state["query_plan"]
     user_id = state["user_id"]
+
+    logger.info(
+        "Starting retrieval", extra={"user": user_id, "action": "retrieval_start"}
+    )
 
     # Create user-specific retrieval agent
     retrieval_agent = create_retrieval_agent(user_id)
@@ -136,6 +156,15 @@ def retrieval_node(state: QAState) -> QAState:
         context = "\n\n".join(structured_context_blocks)
     else:
         context = ""
+
+    logger.info(
+        f"Retrieval complete: {len(all_citations)} citations found",
+        extra={
+            "user": user_id,
+            "action": "retrieval_complete",
+            "citation_count": len(all_citations),
+        },
+    )
 
     return {
         "messages": [AIMessage(content="")],
@@ -306,6 +335,12 @@ def verification_node(state: QAState) -> QAState:
     context = state.get("context", "")
     draft_answer = state.get("draft_answer", "")
     citations = state.get("citations", {})
+    user_id = state.get("user_id", "unknown")
+
+    logger.info(
+        "Starting answer verification",
+        extra={"user": user_id, "action": "verification_start"},
+    )
 
     # Create verification agent (user-independent)
     verification_agent = create_verification_agent()

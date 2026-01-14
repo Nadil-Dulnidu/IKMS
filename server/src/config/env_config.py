@@ -24,6 +24,21 @@ class Settings(BaseSettings):
     clerk_issuer: str
     clerk_jwks_url: str
 
+    # Logging Configuration
+    log_dir: str
+    log_file: str
+    max_bytes: int
+    backup_count: int
+    log_level: str
+
+    # server
+    server_port: int
+    server_host: str
+    server_reload: bool
+
+    # Postgres Configuration
+    postgres_uri: str
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

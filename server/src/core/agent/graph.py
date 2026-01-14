@@ -19,12 +19,15 @@ from src.core.agent.nodes import (
 from src.core.agent.state import QAState
 from langchain.messages import HumanMessage
 from langgraph.checkpoint.memory import InMemorySaver
+from src.config.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 memory_saver = InMemorySaver()
 
 
-def create_qa_graph() -> Any:
+def create_qa_graph(checkpointer: Any = None) -> Any:
     """Create and compile the linear multi-agent QA graph.
 
     The graph executes in order:
@@ -37,6 +40,8 @@ def create_qa_graph() -> Any:
     Returns:
         Compiled graph ready for execution.
     """
+    logger.info("Creating QA graph", extra={"action": "graph_create_start"})
+
     builder = StateGraph(QAState)
 
     # Add nodes for each agent
@@ -64,13 +69,18 @@ def create_qa_graph() -> Any:
     builder.add_edge("summarization", "verification")
     builder.add_edge("verification", END)
 
-    return builder.compile(checkpointer=memory_saver)
+    logger.info(
+        "QA graph created successfully", extra={"action": "graph_create_complete"}
+    )
+
+    return builder.compile(checkpointer=checkpointer)
 
 
 @lru_cache(maxsize=1)
-def get_qa_graph() -> Any:
+def get_qa_graph(checkpointer: Any = None) -> Any:
     """Get the compiled QA graph instance (singleton via LRU cache)."""
-    return create_qa_graph()
+    logger.debug("Retrieving QA graph instance", extra={"action": "graph_get"})
+    return create_qa_graph(checkpointer)
 
 
 def run_qa_flow(question: str) -> Dict[str, Any]:
@@ -90,7 +100,7 @@ def run_qa_flow(question: str) -> Dict[str, Any]:
         - `draft_answer`: Initial draft answer from summarization agent
         - `context`: Retrieved context from vector store
     """
-    graph = get_qa_graph()
+    graph = get_qa_graph(checkpointer=memory_saver)
 
     initial_state: QAState = {
         "question": question,

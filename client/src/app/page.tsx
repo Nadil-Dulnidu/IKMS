@@ -61,7 +61,7 @@ function ChatApp() {
   const transport = useMemo(
     () =>
       new DefaultChatTransport({
-        api: `${BACKEND_URL}/qa`,
+        api: `${BACKEND_URL}/api/chat`,
         headers: async () => {
           const token = await getToken({ template: "ikms" });
           return {
@@ -70,7 +70,7 @@ function ChatApp() {
         },
         body: () => {
           return {
-            thread_id: threadId
+            thread_id: threadId,
           };
         },
       }),
@@ -82,7 +82,7 @@ function ChatApp() {
     onError: (error) => {
       if (error instanceof Error) {
         const errorData = JSON.parse(error.message);
-        toast.error(`${errorData.detail}`,{
+        toast.error(`${errorData.detail}`, {
           action: {
             label: "Dismiss",
             onClick: () => toast.dismiss(),
@@ -94,7 +94,6 @@ function ChatApp() {
   });
 
   const handleSubmit = (message: PromptInputMessage) => {
-
     if (!isSignedIn) {
       toast.warning("Please sign in to continue.", {
         action: {
@@ -190,7 +189,7 @@ function ChatApp() {
                 <div className="flex flex-col items-center justify-center h-full gap-6">
                   <div className="text-center space-y-2">
                     {isSignedIn && isLoaded ? (
-                      <Greeting name={user?.firstName || "User"} className="text-3xl" showIcon={false} />
+                      <Greeting name={user?.firstName || "User"} className="text-3xl" showIcon={true} />
                     ) : (
                       <p className="text-3xl font-semibold tracking-tight">Organize and manage your knowledge.</p>
                     )}
