@@ -56,8 +56,13 @@ def check_file_media_type(messages: List[Dict[str, Any]]) -> bool:
         bool: True if any message has a file part, False otherwise
     """
     for message in messages:
-        if "mediaType" in message and message["mediaType"] == "application/pdf":
-            return True
+        if "parts" in message and message["parts"]:
+            for part in message["parts"]:
+                if (
+                    part.get("type") == "file"
+                    and part.get("mediaType").lower() == "application/pdf"
+                ):
+                    return True
     return False
 
 

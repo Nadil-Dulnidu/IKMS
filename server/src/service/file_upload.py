@@ -90,14 +90,14 @@ async def save_file_from_data_url(data_url: str, filename: str = None) -> Path:
             f"File saved successfully: {filename}",
             extra={
                 "action": "file_save_success",
-                "filename": filename,
+                "uploaded_filename": filename,
                 "file_size": len(file_content),
             },
         )
     except Exception as e:
         logger.error(
             f"Failed to save file: {str(e)}",
-            extra={"action": "file_save_error", "filename": filename},
+            extra={"action": "file_save_error", "uploaded_filename": filename},
             exc_info=True,
         )
         raise

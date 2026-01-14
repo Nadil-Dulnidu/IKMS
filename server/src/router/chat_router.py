@@ -83,7 +83,7 @@ async def chat_endpoint(payload: VercelChatRequest, token=Depends(verify_clerk_t
                     extra={
                         "user": user_id,
                         "action": "file_upload_complete",
-                        "filename": filename,
+                        "uploaded_filename": filename,
                     },
                 )
             except Exception as e:
@@ -92,7 +92,7 @@ async def chat_endpoint(payload: VercelChatRequest, token=Depends(verify_clerk_t
                     extra={
                         "user": user_id,
                         "action": "file_upload_failed",
-                        "filename": filename,
+                        "uploaded_filename": filename,
                     },
                     exc_info=True,
                 )

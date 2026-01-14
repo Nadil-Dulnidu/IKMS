@@ -27,7 +27,7 @@ logger = get_logger(__name__)
 memory_saver = InMemorySaver()
 
 
-def create_qa_graph() -> Any:
+def create_qa_graph(checkpointer: Any = None) -> Any:
     """Create and compile the linear multi-agent QA graph.
 
     The graph executes in order:
@@ -73,14 +73,14 @@ def create_qa_graph() -> Any:
         "QA graph created successfully", extra={"action": "graph_create_complete"}
     )
 
-    return builder.compile(checkpointer=memory_saver)
+    return builder.compile(checkpointer=checkpointer)
 
 
 @lru_cache(maxsize=1)
-def get_qa_graph() -> Any:
+def get_qa_graph(checkpointer: Any = None) -> Any:
     """Get the compiled QA graph instance (singleton via LRU cache)."""
     logger.debug("Retrieving QA graph instance", extra={"action": "graph_get"})
-    return create_qa_graph()
+    return create_qa_graph(checkpointer)
 
 
 def run_qa_flow(question: str) -> Dict[str, Any]:
@@ -100,7 +100,7 @@ def run_qa_flow(question: str) -> Dict[str, Any]:
         - `draft_answer`: Initial draft answer from summarization agent
         - `context`: Retrieved context from vector store
     """
-    graph = get_qa_graph()
+    graph = get_qa_graph(checkpointer=memory_saver)
 
     initial_state: QAState = {
         "question": question,

@@ -139,7 +139,7 @@ def index_documents(file_path: Path, user_id: str) -> int:
         extra={
             "user": user_id,
             "action": "vector_index_start",
-            "filename": file_path.name,
+            "file_name": file_path.name,
         },
     )
 
@@ -165,7 +165,7 @@ def index_documents(file_path: Path, user_id: str) -> int:
             extra={
                 "user": user_id,
                 "action": "vector_index_complete",
-                "filename": file_path.name,
+                "file_name": file_path.name,
                 "chunk_count": len(texts),
             },
         )
@@ -177,7 +177,7 @@ def index_documents(file_path: Path, user_id: str) -> int:
             extra={
                 "user": user_id,
                 "action": "vector_index_error",
-                "filename": file_path.name,
+                "file_name": file_path.name,
             },
             exc_info=True,
         )
