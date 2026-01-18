@@ -41,6 +41,7 @@ async def save_file_from_data_url(data_url: str, filename: str = None) -> Path:
         data_url = "data:application/pdf;base64,JVBERi0xLjQK..."
         file_path = await save_file_from_data_url(data_url, "document.pdf")
     """
+    upload_dir = Path(settings.file_upload_dir)
     upload_dir.mkdir(parents=True, exist_ok=True)
 
     # Parse data URL
