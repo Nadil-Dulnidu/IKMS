@@ -57,6 +57,7 @@ class LoggerConfig:
     LOG_FILE = None
     MAX_BYTES = None
     BACKUP_COUNT = None
+    LOG_DIR_ENABLE = None
 
     _loggers: Dict[str, logging.Logger] = {}
     _configured = False
