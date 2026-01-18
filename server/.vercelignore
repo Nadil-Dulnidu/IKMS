@@ -1,0 +1,40 @@
+# Virtual environment
+.venv/
+venv/
+env/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Environment variables (will be set in Vercel dashboard)
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+logs/
+*.log
+
+# Data files (if not needed in production)
+data/
+
+# Lock files (Vercel uses requirements.txt)
+uv.lock
+poetry.lock
+Pipfile.lock
+
+# Git
+.git/
+.gitignore
+
+# Python version file
+.python-version
+
+# Development files
+server.py
