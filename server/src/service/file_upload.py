@@ -41,8 +41,6 @@ async def save_file_from_data_url(data_url: str, filename: str = None) -> Path:
         data_url = "data:application/pdf;base64,JVBERi0xLjQK..."
         file_path = await save_file_from_data_url(data_url, "document.pdf")
     """
-    # Create upload directory if it doesn't exist
-    upload_dir = Path(settings.file_upload_dir)
     upload_dir.mkdir(parents=True, exist_ok=True)
 
     # Parse data URL
@@ -103,3 +101,26 @@ async def save_file_from_data_url(data_url: str, filename: str = None) -> Path:
         raise
 
     return file_path
+
+
+def cleanup_temp_file(file_path: Path) -> None:
+    """
+    Delete a temporary file. Safe to call even if file doesn't exist.
+
+    Important for serverless environments where /tmp has limited space.
+
+    Args:
+        file_path: Path to the file to delete
+    """
+    try:
+        if file_path.exists():
+            file_path.unlink()
+            logger.info(
+                f"Temporary file deleted: {file_path.name}",
+                extra={"action": "temp_file_cleanup", "filename": file_path.name},
+            )
+    except Exception as e:
+        logger.warning(
+            f"Failed to delete temporary file: {str(e)}",
+            extra={"action": "temp_file_cleanup_error", "filename": file_path.name},
+        )

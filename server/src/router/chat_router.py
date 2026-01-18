@@ -1,5 +1,5 @@
 from fastapi import APIRouter, File, HTTPException, Request, UploadFile, status, Depends
-from src.service import save_file_from_data_url
+from src.service import save_file_from_data_url, cleanup_temp_file
 from src.service import index_pdf_file
 from src.model import VercelChatRequest
 from src.service import answer_question
@@ -76,8 +76,13 @@ async def chat_endpoint(payload: VercelChatRequest, token=Depends(verify_clerk_t
             try:
                 # Download and save the file with the original filename
                 file_path = await save_file_from_data_url(file_url, filename)
+
                 # Index the downloaded PDF into user's namespace
                 await index_pdf_file(file_path, user_id)
+
+                # Clean up temporary file after indexing (important for /tmp space management)
+                cleanup_temp_file(file_path)
+
                 logger.info(
                     f"File indexed successfully: {filename}",
                     extra={

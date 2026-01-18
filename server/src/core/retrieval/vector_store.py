@@ -6,9 +6,8 @@ from pinecone import Pinecone
 from langchain_core.documents import Document
 from langchain_pinecone import PineconeVectorStore
 from langchain_openai import OpenAIEmbeddings
-from langchain_pymupdf4llm import PyMuPDF4LLMLoader
+from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_community.document_loaders.parsers import LLMImageBlobParser
 from fastapi import HTTPException, status
 
 from src.config import get_settings
@@ -144,13 +143,9 @@ def index_documents(file_path: Path, user_id: str) -> int:
     )
 
     try:
-        loader = PyMuPDF4LLMLoader(
+        loader = PyPDFLoader(
             str(file_path),
             mode="page",
-            # extract_images=True,
-            # image_parser=LLMImageBlobParser(
-            #         model=create_chat_model()
-            #     ),
         )
         docs = loader.load()
 

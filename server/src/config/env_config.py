@@ -30,6 +30,7 @@ class Settings(BaseSettings):
     max_bytes: int
     backup_count: int
     log_level: str
+    log_dir_enable: bool
 
     # server
     server_port: int
