@@ -26,5 +26,5 @@ async def get_postgres_checkpointer() -> AsyncPostgresSaver:
         >>> # Use checkpointer with your graph
     """
     checkpointer = AsyncPostgresSaver.from_conn_string(settings.postgres_uri)
-    await checkpointer.__aenter__()
+    # await checkpointer.__aenter__()
     return checkpointer
