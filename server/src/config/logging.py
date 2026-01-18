@@ -72,6 +72,8 @@ class LoggerConfig:
             cls.MAX_BYTES = get_settings().max_bytes
         if cls.BACKUP_COUNT is None:
             cls.BACKUP_COUNT = get_settings().backup_count
+        if cls.LOG_DIR_ENABLE is None:
+            cls.LOG_DIR_ENABLE = get_settings().log_dir_enable
 
     @classmethod
     def setup(
@@ -88,6 +90,9 @@ class LoggerConfig:
 
         # Initialize config values from config.json
         cls._init_config_values()
+
+        if cls.LOG_DIR_ENABLE is False:
+            enable_file_logging = False
 
         # Determine log level from config or parameter
         if log_level is None:
@@ -117,6 +122,9 @@ class LoggerConfig:
 
         if not cls._configured:
             cls.setup()
+
+        if cls.LOG_DIR_ENABLE is False:
+            enable_file_logging = False
 
         if name in cls._loggers:
             return cls._loggers[name]

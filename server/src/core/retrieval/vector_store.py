@@ -143,7 +143,10 @@ def index_documents(file_path: Path, user_id: str) -> int:
     )
 
     try:
-        loader = PyPDFLoader(str(file_path), mode="page")
+        loader = PyPDFLoader(
+            str(file_path),
+            mode="page",
+        )
         docs = loader.load()
 
         text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
