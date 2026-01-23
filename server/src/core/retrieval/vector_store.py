@@ -29,7 +29,7 @@ def _get_vector_store(user_id: str) -> PineconeVectorStore:
     Returns:
         PineconeVectorStore instance configured for the specific user
     """
-    pc = Pinecone(api_key=settings.pinecone_api_key, pool_threads=1)
+    pc = Pinecone(api_key=settings.pinecone_api_key)
     index = pc.Index(settings.pinecone_index_name)
 
     embeddings = OpenAIEmbeddings(
