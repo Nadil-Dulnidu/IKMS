@@ -118,10 +118,10 @@ def cleanup_temp_file(file_path: Path) -> None:
             file_path.unlink()
             logger.info(
                 f"Temporary file deleted: {file_path.name}",
-                extra={"action": "temp_file_cleanup", "filename": file_path.name},
+                extra={"action": "temp_file_cleanup", "file_name": file_path.name},
             )
     except Exception as e:
         logger.warning(
             f"Failed to delete temporary file: {str(e)}",
-            extra={"action": "temp_file_cleanup_error", "filename": file_path.name},
+            extra={"action": "temp_file_cleanup_error", "file_name": file_path.name},
         )
